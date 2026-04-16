@@ -1,0 +1,42 @@
+services:
+
+  # Constrói a imagem que roda dentro de cada container de agente.
+  # Executa uma vez e sai — só serve pra garantir que nanoclaw-agent:latest existe.
+  agent-builder:
+    build:
+      context: ./container
+    image: nanoclaw-agent:latest
+    command: ["echo", "nanoclaw-agent image ready"]
+
+  nanoclaw:
+    build: .
+    container_name: nanoclaw-bot
+    restart: unless-stopped
+    depends_on:
+      agent-builder:
+        condition: service_completed_successfully
+
+    # Truque de path: monta o projeto no container no mesmo caminho absoluto
+    # do host. Necessário porque o nanoclaw usa process.cwd() para montar
+    # volumes nos containers de agente via Docker socket.
+    working_dir: ${PWD}
+
+    volumes:
+      # Docker socket: permite spawnar containers de agente no host
+      - /var/run/docker.sock:/var/run/docker.sock
+
+      # Projeto montado no mesmo path do host (veja working_dir acima)
+      - ${PWD}:${PWD}
+
+      # Auth do Claude Code (sessão do claude.ai)
+      - ${HOME}/.claude:/root/.claude
+
+      # Allowlist de remetentes (só seu número pessoal)
+      - ${HOME}/.config/nanoclaw:/root/.config/nanoclaw:ro
+
+    environment:
+      ASSISTANT_NAME: ${ASSISTANT_NAME:-Andy}
+      TZ: ${TZ:-America/Sao_Paulo}
+      ASSISTANT_HAS_OWN_NUMBER: ${ASSISTANT_HAS_OWN_NUMBER:-true}
+
+    # Sem portas expostas: nanoclaw não tem web UI, opera só via WhatsApp
