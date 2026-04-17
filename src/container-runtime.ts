@@ -82,7 +82,12 @@ export function cleanupOrphans(): void {
       `${CONTAINER_RUNTIME_BIN} ps --filter name=nanoclaw- --format '{{.Names}}'`,
       { stdio: ['pipe', 'pipe', 'pipe'], encoding: 'utf-8' },
     );
-    const orphans = output.trim().split('\n').filter(Boolean);
+    // Agent containers always end with a numeric timestamp (e.g. nanoclaw-group-1776387403529).
+    // Infrastructure containers (nanoclaw-onecli, nanoclaw-onecli-postgres-1) must be excluded.
+    const orphans = output
+      .trim()
+      .split('\n')
+      .filter((name) => Boolean(name) && /nanoclaw-.+-\d{10,}$/.test(name));
     for (const name of orphans) {
       try {
         stopContainer(name);

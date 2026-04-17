@@ -11,6 +11,8 @@ const envConfig = readEnvFile([
   'ONECLI_URL',
   'ONECLI_API_KEY',
   'TZ',
+  'GITLAB_TOKEN',
+  'GITLAB_URL',
 ]);
 
 export const ASSISTANT_NAME =
@@ -97,3 +99,7 @@ function resolveConfigTimezone(): string {
   return 'UTC';
 }
 export const TIMEZONE = resolveConfigTimezone();
+
+export const GITLAB_TOKEN = process.env.GITLAB_TOKEN || envConfig.GITLAB_TOKEN;
+export const GITLAB_URL =
+  process.env.GITLAB_URL || envConfig.GITLAB_URL || 'https://gitlab.com';

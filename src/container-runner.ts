@@ -13,6 +13,8 @@ import {
   DATA_DIR,
   GROUPS_DIR,
   IDLE_TIMEOUT,
+  GITLAB_TOKEN,
+  GITLAB_URL,
   ONECLI_API_KEY,
   ONECLI_URL,
   TIMEZONE,
@@ -96,6 +98,16 @@ function buildVolumeMounts(
     mounts.push({
       hostPath: storeDir,
       containerPath: '/workspace/project/store',
+      readonly: false,
+    });
+
+    // Writable projects directory for cloning and editing code.
+    // Shadows the read-only project root mount so the agent can write here.
+    const projectsDir = path.join(projectRoot, 'projects');
+    fs.mkdirSync(projectsDir, { recursive: true });
+    mounts.push({
+      hostPath: projectsDir,
+      containerPath: '/workspace/project/projects',
       readonly: false,
     });
 
@@ -252,6 +264,13 @@ async function buildContainerArgs(
 
   // Pass host timezone so container's local time matches the user's
   args.push('-e', `TZ=${TIMEZONE}`);
+
+  // Pass GitLab config if set — the agent-runner filters these out of sdkEnv
+  // so the agent's bash never sees them, only the gitlab MCP server subprocess does.
+  if (GITLAB_TOKEN) {
+    args.push('-e', `GITLAB_TOKEN=${GITLAB_TOKEN}`);
+    args.push('-e', `GITLAB_URL=${GITLAB_URL}`);
+  }
 
   // OneCLI gateway handles credential injection — containers never see real secrets.
   // The gateway intercepts HTTPS traffic and injects API keys or OAuth tokens.

@@ -412,6 +412,8 @@ async function runQuery(
   let messageCount = 0;
   let resultCount = 0;
 
+  const gitlabMcpPath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'mcp-gitlab.js');
+
   // Load global CLAUDE.md as additional system context (shared across all groups)
   const globalClaudeMdPath = '/workspace/global/CLAUDE.md';
   let globalClaudeMd: string | undefined;
@@ -484,6 +486,18 @@ async function runQuery(
             NANOCLAW_IS_MAIN: containerInput.isMain ? '1' : '0',
           },
         },
+        ...(process.env.GITLAB_TOKEN
+          ? {
+              gitlab: {
+                command: 'node',
+                args: [gitlabMcpPath],
+                env: {
+                  GITLAB_TOKEN: process.env.GITLAB_TOKEN,
+                  GITLAB_URL: process.env.GITLAB_URL ?? 'https://gitlab.com',
+                },
+              },
+            }
+          : {}),
       },
       hooks: {
         PreCompact: [
@@ -622,9 +636,14 @@ async function main(): Promise<void> {
   }
 
   // Credentials are injected by the host's credential proxy via ANTHROPIC_BASE_URL.
-  // No real secrets exist in the container environment.
+  // GITLAB_TOKEN and GITLAB_URL are intentionally excluded here — they are
+  // passed only to the gitlab MCP server subprocess, so the agent cannot access
+  // them via bash and is forced to use the controlled gitlab_* tools.
+  const AGENT_BLOCKED_VARS = new Set(['GITLAB_TOKEN', 'GITLAB_URL', 'GITLAB_PROJECTS']);
   const sdkEnv: Record<string, string | undefined> = {
-    ...process.env,
+    ...Object.fromEntries(
+      Object.entries(process.env).filter(([k]) => !AGENT_BLOCKED_VARS.has(k)),
+    ),
     CLAUDE_CODE_AUTO_COMPACT_WINDOW: '165000',
   };
 
