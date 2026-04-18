@@ -614,6 +614,15 @@ async function runScript(script: string): Promise<ScriptResult | null> {
   });
 }
 
+const CODE_KEYWORDS =
+  /\b(código|code|função|function|classe|class|bug|fix|corrigir|implementar|implement|refactor|refatorar|review|revisar|analisar|analisa|análise|analyze|escrever|write|criar|create|debug|debugar|sql|query|api|endpoint|script|teste|test|deploy|commit|branch|merge|diff|vulnerabilidade|vulnerability|segurança|security|erro|error|exception|variável|variable|método|method|arquivo|file|módulo|module|dependência|dependency|package|npm|docker|container|database|banco)\b/i;
+
+function selectModel(prompt: string): string {
+  return CODE_KEYWORDS.test(prompt)
+    ? 'claude-sonnet-4-6'
+    : 'claude-haiku-4-5-20251001';
+}
+
 async function main(): Promise<void> {
   let containerInput: ContainerInput;
 
@@ -645,6 +654,7 @@ async function main(): Promise<void> {
       Object.entries(process.env).filter(([k]) => !AGENT_BLOCKED_VARS.has(k)),
     ),
     CLAUDE_CODE_AUTO_COMPACT_WINDOW: '165000',
+    CLAUDE_MODEL: selectModel(containerInput.prompt),
   };
 
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
